@@ -1,9 +1,22 @@
 import copy
 import itertools
+import os
+import pathlib as _pathlib
 import random
+import sys
 from functools import partial as bind
 from multiprocessing import current_process
 from typing import Tuple
+
+# Add CausalWorldModel to path for benchmark wrappers (atari_context, procgen_context, etc.)
+# Supports CAUSAL_WORLD_MODEL_ROOT env var override for non-sibling layouts.
+_cwm_root = _pathlib.Path(
+    os.environ.get("CAUSAL_WORLD_MODEL_ROOT", "")
+) if os.environ.get("CAUSAL_WORLD_MODEL_ROOT") else (
+    _pathlib.Path(__file__).resolve().parents[2].parent / "CausalWorldModel"
+)
+if _cwm_root.exists() and str(_cwm_root) not in sys.path:
+    sys.path.insert(0, str(_cwm_root))
 
 import dreamerv3
 import gymnasium as gym
@@ -13,13 +26,26 @@ from carl.context.sampler import ContextSampler
 from carl.context.selection import AbstractSelector
 from carl.envs.carl_env import CARLEnv
 from carl.envs.dmc import CARLDmcWalkerEnv
-from carl.envs.gymnasium.box2d import CARLBipedalWalker, CARLLunarLander
-from carl.envs.gymnasium.classic_control import CARLCartPole, CARLPendulum
+try:
+    from carl.envs.dmc import CARLDmcBallInCupEnv
+except ImportError:
+    CARLDmcBallInCupEnv = None  # Not available in carl-bench >= 1.1.0
+try:
+    from carl.envs.gymnasium.box2d import CARLBipedalWalker, CARLLunarLander
+except (ImportError, ModuleNotFoundError):
+    CARLBipedalWalker = CARLLunarLander = None  # Box2D optional
+try:
+    from carl.envs.gymnasium.classic_control import CARLCartPole, CARLPendulum
+except ImportError:
+    CARLCartPole = CARLPendulum = None
 from carl.utils.types import Context, Contexts
 from dreamerv3 import embodied
 from dreamerv3.embodied.envs import from_gymnasium
 from gymnasium import Wrapper, spaces
-from gymnasium.wrappers.time_limit import TimeLimit
+try:
+    from gymnasium.wrappers.time_limit import TimeLimit
+except ModuleNotFoundError:
+    from gymnasium.wrappers import TimeLimit
 
 CARTPOLE_TRAIN_GRAVITY_RANGE = [4.9, 14.70]
 CARTPOLE_TRAIN_LENGTH_RANGE = [0.35, 0.75]
@@ -237,14 +263,35 @@ _TASK2CONTEXTS = {
     ],
 }
 
+# Benchmark-aligned discrete context value sets for fair DRAMA comparison
+_BENCHMARK_CONTEXTS = {
+    "dmc_walker": {
+        "gravity": {
+            "train":         [7.848, 8.829, 9.810, 10.791, 11.772],
+            "test_iid":      [8.339, 9.320, 10.301, 11.282],
+            "test_ood_mild": [6.377, 6.867, 13.244, 13.734],
+            "test_ood_hard": [4.905, 5.396, 15.696, 17.168],
+        },
+        "actuator_strength": {
+            "train":         [0.75, 0.85, 1.00, 1.15, 1.25],
+            "test_iid":      [0.80, 0.90, 1.10, 1.20],
+            "test_ood_mild": [0.50, 0.60, 1.40, 1.50],
+            "test_ood_hard": [0.35, 0.40, 1.75, 2.00],
+        },
+    },
+}
 
-class CARLBipedalWalkerNew(CARLBipedalWalker):
-    @classmethod
-    def get_default_context(cls) -> Context:
-        default_context = super().get_default_context()
-        default_context["LEG_H"] = 2.0
-        default_context["LEG_W"] = 0.5
-        return default_context
+
+if CARLBipedalWalker is not None:
+    class CARLBipedalWalkerNew(CARLBipedalWalker):
+        @classmethod
+        def get_default_context(cls) -> Context:
+            default_context = super().get_default_context()
+            default_context["LEG_H"] = 2.0
+            default_context["LEG_W"] = 0.5
+            return default_context
+else:
+    CARLBipedalWalkerNew = None
 
 
 _TASK2ENV = {
@@ -275,8 +322,90 @@ def make_env(config, **overrides):
     suite, task = config.task.split("_", 1)
     if suite == "carl":
         return make_carl_env(config, **overrides)
+    elif suite == "atari" and hasattr(config.env, "atari") and "/" in str(config.env.atari.task_sequence):
+        return make_atari_context_env(config, **overrides)
+    elif suite == "procgen" and hasattr(config.env, "procgen") and "/" in str(config.env.procgen.task_sequence):
+        return make_procgen_context_env(config, **overrides)
     else:
         return dreamerv3.train.make_env(config, **overrides)
+
+
+def _parse_task_sequence(seq_str):
+    """Parse 'mode_diff/mode_diff/...' string into [[mode, diff], ...]."""
+    if isinstance(seq_str, list):
+        return seq_str
+    return [[int(x) for x in pair.split("_")] for pair in seq_str.split("/")]
+
+
+def _parse_procgen_task_sequence(seq_str):
+    """Parse 'start_num_mode/...' string into [[start, num, mode], ...]."""
+    if isinstance(seq_str, list):
+        return seq_str
+    result = []
+    for entry in seq_str.split("/"):
+        parts = entry.split("_")
+        result.append([int(parts[0]), int(parts[1]), parts[2]])
+    return result
+
+
+def make_atari_context_env(config, **overrides):
+    """Create Atari env with CARL-like context features for benchmark."""
+    from benchmark.wrappers.atari_context import AtariContextWrapper
+    _, game = config.task.split("_", 1)
+    task_seq = _parse_task_sequence(config.env.atari.task_sequence)
+    try:
+        _proc_id = int(current_process().name.split("-")[-1])
+    except ValueError:
+        _proc_id = 0
+    seed = _proc_id + int(config.seed)
+    switch_mode = getattr(config.env.atari, "switch_mode", "round_robin")
+    atari_kwargs = {
+        "repeat": getattr(config.env.atari, "repeat", 4),
+        "size": tuple(getattr(config.env.atari, "size", (64, 64))),
+        "gray": getattr(config.env.atari, "gray", True),
+        "noops": getattr(config.env.atari, "noops", 0),
+        "lives": getattr(config.env.atari, "lives", "unused"),
+        "sticky": getattr(config.env.atari, "sticky", False),
+        "actions": getattr(config.env.atari, "actions", "needed"),
+        "length": getattr(config.env.atari, "length", 108000),
+        "resize": getattr(config.env.atari, "resize", "opencv"),
+    }
+    env = AtariContextWrapper(
+        game=game,
+        task_sequence=task_seq,
+        seed=seed,
+        switch_mode=switch_mode,
+        atari_kwargs=atari_kwargs,
+    )
+    # AtariContextWrapper outputs DreamerV3-native format, no FromGymnasium needed
+    env = ResizeImage(env)
+    return dreamerv3.wrap_env(env, config)
+
+
+def make_procgen_context_env(config, **overrides):
+    """Create Procgen env with CARL-like context features for benchmark."""
+    from benchmark.wrappers.procgen_context import ProcgenContextWrapper
+    _, game = config.task.split("_", 1)
+    task_seq = _parse_procgen_task_sequence(config.env.procgen.task_sequence)
+    try:
+        _proc_id = int(current_process().name.split("-")[-1])
+    except ValueError:
+        _proc_id = 0
+    seed = _proc_id + int(config.seed)
+    switch_mode = getattr(config.env.procgen, "switch_mode", "round_robin")
+    image_size = tuple(getattr(config.env.procgen, "size", (64, 64)))
+    gray = getattr(config.env.procgen, "gray", False)
+    env = ProcgenContextWrapper(
+        game=game,
+        task_sequence=task_seq,
+        seed=seed,
+        switch_mode=switch_mode,
+        image_size=image_size,
+        gray=gray,
+    )
+    # ProcgenContextWrapper outputs DreamerV3-native format, no FromGymnasium needed
+    env = ResizeImage(env)
+    return dreamerv3.wrap_env(env, config)
 
 
 class NormalizeContextWrapper(Wrapper):
@@ -336,7 +465,7 @@ class NormalizeContextWrapper(Wrapper):
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-        if isinstance(self.env, CARLLunarLander):
+        if CARLLunarLander is not None and isinstance(self.env, CARLLunarLander):
             # Randomize the wind and torque start index in each episode
             # to make the environment more stochastic
             self.env.env.wind_idx = np.random.randint(-9999, 9999)
@@ -425,6 +554,22 @@ def make_carl_env(config, **overrides):
             seed=config.seed,
         )
         contexts = sampler.sample_contexts(n_contexts=100)
+    elif "benchmark_discrete" in config.env.carl.context:
+        # Benchmark mode: use discrete aligned value sets for fair comparison.
+        # Format: "benchmark_discrete" or "benchmark_discrete_test_iid" etc.
+        parts = config.env.carl.context.split("_", 2)
+        split = parts[2] if len(parts) > 2 else "train"
+        bm = _BENCHMARK_CONTEXTS[task]
+        default_ctx = env_cls.get_default_context()
+        # Generate all combinations of discrete values
+        import itertools as _it
+        factor_names = list(bm.keys())
+        value_lists = [bm[f][split] for f in factor_names]
+        for combo in _it.product(*value_lists):
+            c = dict(default_ctx)
+            for fname, val in zip(factor_names, combo):
+                c[fname] = val
+            contexts[len(contexts)] = c
     elif "specific" in config.env.carl.context:
         ctx_vals = {
             int(v.split("-")[0]): float(v.split("-")[-1])
@@ -531,7 +676,11 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
     _, task = config.task.split("_", 1)
     # Only the context features that might change in training or evaluation are # added to the observation space
     context_features = [o["context"] for o in _TASK2CONTEXTS[task]]
-    seed = int(current_process().name.split("-")[-1]) + int(config.seed)
+    try:
+        _proc_id = int(current_process().name.split("-")[-1])
+    except ValueError:
+        _proc_id = 0
+    seed = _proc_id + int(config.seed)
     if task == "box2d_lunar_lander":
         env_cls = bind(
             env_cls,
@@ -557,6 +706,16 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
         env.env.screen_width = 128
         env.env.screen_height = 128
     env = NormalizeContextWrapper(env)
+
+    # Regime B: intra-episode context switching (benchmark only)
+    if getattr(config.env.carl, "regime", "A") == "B":
+        from benchmark.wrappers.carl_intra_episode import make_walker_regime_b_wrapper
+        regime_b_split = getattr(config.env.carl, "regime_b_split", "train")
+        regime_b_lambda = float(getattr(config.env.carl, "regime_b_lambda", 0.005))
+        env = make_walker_regime_b_wrapper(
+            env, seed=seed, lambda_switch=regime_b_lambda, split=regime_b_split,
+        )
+
     if "classic" in task:
         env = TimeLimit(env, max_episode_steps=500)
 

@@ -6,6 +6,12 @@ import numpy as np
 import optax
 from tensorflow_probability.substrates import jax as tfp
 
+# Safety shim: optax >= 0.2.0 renamed additive_weight_decay
+if not hasattr(optax, 'additive_weight_decay'):
+    optax.additive_weight_decay = lambda weight_decay, mask=None: (
+        optax.add_decayed_weights(weight_decay, mask)
+    )
+
 from . import ninjax as nj
 
 tfd = tfp.distributions

@@ -48,13 +48,14 @@ defaults:
   envs: {amount: 4, parallel: process, length: 0, reset: True, restart: True, discretize: 0, checks: False}
   wrapper: {length: 0, reset: True, discretize: 0, checks: False}
   env:
-    atari: {size: [64, 64], repeat: 4, sticky: True, gray: False, actions: all, lives: unused, noops: 0, resize: opencv}
+    atari: {size: [64, 64], repeat: 4, sticky: True, gray: False, actions: all, lives: unused, noops: 0, resize: opencv, length: 108000, task_sequence: '0_0', switch_mode: round_robin}
     dmlab: {size: [64, 64], repeat: 4, episodic: True}
     minecraft: {size: [64, 64], break_speed: 100.0}
     dmc: {size: [64, 64], repeat: 2, camera: -1}
     loconav: {size: [64, 64], repeat: 2, camera: -1}
+    procgen: {task_sequence: '0_100_easy', switch_mode: round_robin, image_size: [64, 64], gray: False}
     # Extra carl config
-    carl: {context: default}
+    carl: {context: default, regime: A, regime_b_lambda: 0.005, regime_b_split: train}
       
   # Agent
   task_behavior: Greedy
@@ -269,11 +270,84 @@ enc_obs_dec_obs_pgm_ctx_adv:
   decoder.inputs: [deter, stoch, context]
   actor.inputs: [deter, stoch, context]
   critic.inputs: [deter, stoch, context]
-# add_context: 
+# add_context:
 #   rssm.add_dcontext: True
 #   .*\_head.inputs: [deter, stoch, context]
 #   decoder.inputs: [deter, stoch, context]
 #   actor.inputs: [deter, stoch, context]
 #   critic.inputs: [deter, stoch, context]
+
+####################################################################################################
+# Benchmark presets for DRAMA comparison
+# Use with: --configs carl benchmark_regime_a <ARCHITECTURE_PRESET>
+
+benchmark_regime_a:
+  task: carl_dmc_walker
+  env.carl.context: benchmark_discrete
+  run.steps: 500000
+  run.eval_every: 50000
+  run.eval_eps: 50
+
+benchmark_regime_b:
+  task: carl_dmc_walker
+  env.carl.context: benchmark_discrete
+  env.carl.regime: B
+  env.carl.regime_b_lambda: 0.005
+  env.carl.regime_b_split: train
+  run.steps: 500000
+  run.eval_every: 50000
+  run.eval_eps: 50
+
+# Atari benchmark presets
+benchmark_atari_alien:
+  task: atari_alien
+  env.atari.task_sequence: '0_0/1_1/2_2/3_3'
+  env.atari.switch_mode: round_robin
+  env.atari.repeat: 4
+  env.atari.size: [64, 64]
+  env.atari.gray: False
+  env.atari.noops: 0
+  env.atari.sticky: False
+  env.atari.actions: needed
+  env.atari.lives: discount
+  env.atari.length: 108000
+  run.steps: 1000000
+  run.eval_every: 100000
+  run.eval_eps: 30
+  # Pixel-based: CNN for image, MLP for context vector
+  encoder: {mlp_keys: 'context', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+
+benchmark_atari_pong:
+  task: atari_pong
+  env.atari.task_sequence: '0_0/1_1'
+  env.atari.switch_mode: round_robin
+  env.atari.repeat: 4
+  env.atari.size: [64, 64]
+  env.atari.gray: False
+  env.atari.noops: 0
+  env.atari.sticky: False
+  env.atari.actions: needed
+  env.atari.lives: discount
+  env.atari.length: 108000
+  run.steps: 1000000
+  run.eval_every: 100000
+  run.eval_eps: 30
+  encoder: {mlp_keys: 'context', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+
+# Procgen benchmark presets
+benchmark_procgen_coinrun:
+  task: procgen_coinrun
+  env.procgen.task_sequence: '0_100_easy/100_100_easy'
+  env.procgen.switch_mode: round_robin
+  env.procgen.image_size: [64, 64]
+  env.procgen.gray: False
+  run.steps: 300000
+  run.eval_every: 50000
+  run.eval_eps: 30
+  # Pixel-based: CNN for image, MLP for context vector
+  encoder: {mlp_keys: 'context', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
 
 ####################################################################################################
