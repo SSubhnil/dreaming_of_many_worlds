@@ -19,8 +19,20 @@ os.environ["MUJOCO_GL"] = "egl"  # use EGL instead of GLFW to render MuJoCo
 def eval(policy, env, args, episodes=10):
     lengths = []
     rewards = []
+    # Per-episode reward prediction tracking
+    ep_reward_hats = {}   # worker_id -> list of reward_hat per step
+    ep_reward_actuals = {}
+    all_reward_mses = []
 
-    def per_episode(ep):
+    def per_step(tran, worker):
+        """Collect per-step reward predictions if available."""
+        if "reward_hat" in tran:
+            ep_reward_hats.setdefault(worker, []).append(
+                float(tran["reward_hat"]))
+            ep_reward_actuals.setdefault(worker, []).append(
+                float(tran["reward"]))
+
+    def per_episode(ep, worker):
         length = len(ep["reward"]) - 1
         score = float(ep["reward"].astype(np.float64).sum())
         print(f"Episode has {length} steps and return {score:.1f}.")
@@ -30,9 +42,18 @@ def eval(policy, env, args, episodes=10):
                 stats[f"policy_{key}"] = ep[key]
         lengths.append(length)
         rewards.append(score)
+        # Compute per-episode reward MSE if predictions were collected
+        if worker in ep_reward_hats and len(ep_reward_hats[worker]) > 0:
+            rh = np.array(ep_reward_hats[worker])
+            ra = np.array(ep_reward_actuals[worker])
+            mse = float(np.mean((rh - ra) ** 2))
+            all_reward_mses.append(mse)
+            ep_reward_hats[worker] = []
+            ep_reward_actuals[worker] = []
 
     driver = embodied.Driver(env)
-    driver.on_episode(lambda ep, worker: per_episode(ep))
+    driver.on_step(per_step)
+    driver.on_episode(per_episode)
 
     print("Start evaluation loop.")
     driver(policy, episodes=episodes)
@@ -48,6 +69,9 @@ def eval(policy, env, args, episodes=10):
         "returns": rewards,
         "lengths": lengths,
     }
+    if all_reward_mses:
+        metrics["reward_mse"] = float(np.mean(all_reward_mses))
+        metrics["reward_mse_std"] = float(np.std(all_reward_mses))
 
     return metrics
 

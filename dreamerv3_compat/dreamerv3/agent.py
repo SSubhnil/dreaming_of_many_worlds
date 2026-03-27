@@ -87,6 +87,9 @@ class Agent(nj.Module):
             outs = task_outs
             outs["action"] = outs["action"].sample(seed=nj.rng())
             outs["log_entropy"] = jnp.zeros(outs["action"].shape[:1])
+            # Reward prediction for benchmark eval (reward accuracy metric)
+            reward_dist = self.wm.heads["reward"](latent)
+            outs["reward_hat"] = reward_dist.mean()
         elif mode == "explore":
             outs = expl_outs
             outs["log_entropy"] = outs["action"].entropy()
