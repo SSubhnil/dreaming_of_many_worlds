@@ -165,7 +165,7 @@ def train(agent, env, replay, logger, args, eval_env=None, factor_names=None):
     while step < args.steps:
         driver(policy, steps=100)
         if should_eval is not None and should_eval(step):
-            eval_policy = lambda *a, **kw: agent.policy(*a, mode="eval")
+            eval_policy = lambda *a, **kw: agent.policy(*a, mode="train")
             eval_driver(eval_policy, episodes=args.eval_eps)
             logger.add(eval_metrics.result())
             logger.write()
