@@ -772,6 +772,14 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
 
     if "dmc" in task:
         env.env.render_mode = "rgb_array"
+        # CARL's MujocoToGymWrapper defaults to camera_id=0 (wide top-down).
+        # For quadruped, use camera 2 (tracking side view) so the agent fills
+        # the frame, matching DreamerV3's DEFAULT_CAMERAS convention.
+        if task == "dmc_quadruped":
+            _inner = env.env
+            import functools
+            _orig_render = _inner.render
+            _inner.render = functools.partial(_orig_render, camera_id=2)
     if task == "classic_cartpole":
         env.env.screen_width = 128
         env.env.screen_height = 128
