@@ -23,7 +23,7 @@ from contextual_mbrl.dreamer.envs import make_envs
 warnings.filterwarnings("ignore")
 
 
-def train(agent, env, replay, logger, args):
+def train(agent, env, replay, logger, args, eval_env=None):
     # copied from embodied.run.train and modified
     logdir = embodied.Path(args.logdir)
     logdir.mkdirs()
@@ -33,6 +33,7 @@ def train(agent, env, replay, logger, args):
     should_log = embodied.when.Clock(args.log_every)
     should_save = embodied.when.Clock(args.save_every)
     should_sync = embodied.when.Every(args.sync_every)
+    should_eval = embodied.when.Every(args.eval_every) if eval_env is not None else None
     step = logger.step
     updates = embodied.Counter()
     metrics = embodied.Metrics()
@@ -81,6 +82,19 @@ def train(agent, env, replay, logger, args):
     driver.on_episode(lambda ep, worker: per_episode(ep))
     driver.on_step(lambda tran, _: step.increment())
     driver.on_step(replay.add)
+
+    # Eval driver: separate env, greedy policy, not added to replay
+    eval_metrics = embodied.Metrics()
+    if eval_env is not None:
+        eval_driver = embodied.Driver(eval_env)
+
+        def per_eval_episode(ep):
+            score = float(ep["reward"].astype(np.float64).sum())
+            length = len(ep["reward"]) - 1
+            eval_metrics.add({"score": score, "length": length}, prefix="eval")
+            print(f"Eval episode: length={length}, return={score:.1f}.")
+
+        eval_driver.on_episode(lambda ep, worker: per_eval_episode(ep))
 
     print("Prefill train dataset.")
     random_agent = embodied.RandomAgent(env.act_space)
@@ -132,6 +146,11 @@ def train(agent, env, replay, logger, args):
     )
     while step < args.steps:
         driver(policy, steps=100)
+        if should_eval is not None and should_eval(step):
+            eval_policy = lambda *a, **kw: agent.policy(*a, mode="eval")
+            eval_driver(eval_policy, episodes=args.eval_eps)
+            logger.add(eval_metrics.result())
+            logger.write()
         if should_save(step):
             checkpoint.save()
     # save the final checkpoint
@@ -194,6 +213,7 @@ def main():
     logger = embodied.Logger(step, loggers)
 
     env = make_envs(config)
+    eval_env = make_envs(config)  # same distribution as training for fair comparison
     agent = dreamerv3.Agent(env.obs_space, env.act_space, step, config)
     replay = embodied.replay.Uniform(
         config.batch_length, config.replay_size, None
@@ -203,7 +223,7 @@ def main():
         logdir=config.logdir,
         batch_steps=config.batch_size * config.batch_length,
     )
-    train(agent, env, replay, logger, args)
+    train(agent, env, replay, logger, args, eval_env=eval_env)
 
 
 if __name__ == "__main__":
