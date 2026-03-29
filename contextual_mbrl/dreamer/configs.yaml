@@ -55,7 +55,7 @@ defaults:
     loconav: {size: [64, 64], repeat: 2, camera: -1}
     procgen: {task_sequence: '0_100_easy', switch_mode: round_robin, image_size: [64, 64], gray: False, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0]}
     # Extra carl config
-    carl: {context: default, regime: A, regime_b_lambda: 0.005, regime_b_split: train}
+    carl: {context: default, regime: A, regime_b_lambda: 0.005, regime_b_lambda_range: [0.003, 0.008], regime_b_split: train, regime_b_factors: K2, regime_b_reward_modes: [walk_forward, walk_backward]}
       
   # Agent
   task_behavior: Greedy
@@ -324,6 +324,84 @@ benchmark_regime_b_quadruped:
   run.eval_every: 20000
   run.eval_eps: 50
   # cRSSM-S: shallow context-aware (featurized obs, context fed to RSSM)
+  encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  rssm.add_dcontext: True
+  ^(?!context).*\_head.inputs: [deter, stoch, context]
+  decoder.inputs: [deter, stoch, context]
+  actor.inputs: [deter, stoch, context]
+  critic.inputs: [deter, stoch, context]
+
+benchmark_regime_b_K3:
+  task: carl_dmc_walker
+  env.carl.context: benchmark_discrete
+  env.carl.regime: B
+  env.carl.regime_b_lambda: 0.005
+  env.carl.regime_b_split: train
+  env.carl.regime_b_factors: K3
+  run.steps: 1000000
+  run.eval_every: 20000
+  run.eval_eps: 50
+  # cRSSM-D: context-aware (obs + context fed to RSSM)
+  encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  rssm.add_dcontext: True
+  ^(?!context).*\_head.inputs: [deter, stoch, context]
+  decoder.inputs: [deter, stoch, context]
+  actor.inputs: [deter, stoch, context]
+  critic.inputs: [deter, stoch, context]
+
+benchmark_regime_b_K3_quadruped:
+  task: carl_dmc_quadruped
+  env.carl.context: benchmark_discrete
+  env.carl.regime: B
+  env.carl.regime_b_lambda: 0.005
+  env.carl.regime_b_split: train
+  env.carl.regime_b_factors: K3
+  run.steps: 1000000
+  run.eval_every: 20000
+  run.eval_eps: 50
+  # cRSSM-D: context-aware (obs + context fed to RSSM)
+  encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  rssm.add_dcontext: True
+  ^(?!context).*\_head.inputs: [deter, stoch, context]
+  decoder.inputs: [deter, stoch, context]
+  actor.inputs: [deter, stoch, context]
+  critic.inputs: [deter, stoch, context]
+
+benchmark_regime_b_mixed:
+  task: carl_dmc_walker
+  env.carl.context: benchmark_discrete
+  env.carl.regime: B
+  env.carl.regime_b_lambda: 0.005
+  env.carl.regime_b_split: train
+  env.carl.regime_b_factors: K3_mixed
+  env.carl.regime_b_reward_modes: [walk_forward, walk_backward]
+  run.steps: 1000000
+  run.eval_every: 20000
+  run.eval_eps: 50
+  # cRSSM-D: context-aware — partial oracle (physics context only, reward-blind)
+  encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
+  rssm.add_dcontext: True
+  ^(?!context).*\_head.inputs: [deter, stoch, context]
+  decoder.inputs: [deter, stoch, context]
+  actor.inputs: [deter, stoch, context]
+  critic.inputs: [deter, stoch, context]
+
+benchmark_regime_b_mixed_quadruped:
+  task: carl_dmc_quadruped
+  env.carl.context: benchmark_discrete
+  env.carl.regime: B
+  env.carl.regime_b_lambda: 0.005
+  env.carl.regime_b_split: train
+  env.carl.regime_b_factors: K3_mixed
+  env.carl.regime_b_reward_modes: [go_north, go_south]
+  run.steps: 1000000
+  run.eval_every: 20000
+  run.eval_eps: 50
+  # cRSSM-D: context-aware — partial oracle (physics context only, reward-blind)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   rssm.add_dcontext: True
