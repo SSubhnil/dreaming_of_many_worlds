@@ -738,6 +738,14 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
     _, task = config.task.split("_", 1)
     # Only the context features that might change in training or evaluation are # added to the observation space
     context_features = [o["context"] for o in _TASK2CONTEXTS[task]]
+    # K3 regime-B adds wind_x as a 3rd factor; CARL must include it in obs so
+    # CARLIntraEpisodeSwitching can write to the correct context slot.
+    if (task in ("dmc_walker", "dmc_quadruped")
+            and getattr(getattr(config, "env", None), "carl", None) is not None
+            and getattr(config.env.carl, "regime", "A") == "B"
+            and getattr(config.env.carl, "regime_b_factors", "K2") == "K3"
+            and "wind_x" not in context_features):
+        context_features = context_features + ["wind_x"]
     try:
         _proc_id = int(current_process().name.split("-")[-1])
     except ValueError:

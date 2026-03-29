@@ -172,9 +172,11 @@ def main():
     loggers = [
         embodied.logger.TerminalOutput(),
         embodied.logger.JSONLOutput(logdir, "metrics.jsonl"),
-        embodied.logger.TensorBoardOutput(logdir),
+        # TensorBoardOutput triggers tf.summary which fails in this env.
+        # Metrics available via JSONLOutput and WandB instead.
     ]
     if config.wandb.project != "":
+        import wandb as _wandb
         loggers.append(
             embodied.logger.WandBOutput(
                 ".*",
@@ -182,8 +184,9 @@ def main():
                     **config.wandb,
                     name=logdir.name,
                     config=dict(config),
-                    resume=True,
+                    resume="allow",
                     dir=str(logdir),
+                    settings=_wandb.Settings(init_timeout=300),
                 ),
             )
         )
@@ -193,7 +196,7 @@ def main():
     env = make_envs(config)
     agent = dreamerv3.Agent(env.obs_space, env.act_space, step, config)
     replay = embodied.replay.Uniform(
-        config.batch_length, config.replay_size, logdir / "replay"
+        config.batch_length, config.replay_size, None
     )
     args = embodied.Config(
         **config.run,
