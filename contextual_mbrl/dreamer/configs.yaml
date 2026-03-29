@@ -286,7 +286,7 @@ benchmark_regime_a:
   env.carl.context: benchmark_discrete
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (featurized obs, context fed to RSSM)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -304,7 +304,7 @@ benchmark_regime_b:
   env.carl.regime_b_split: train
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (featurized obs, context fed to RSSM)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -322,7 +322,7 @@ benchmark_regime_b_quadruped:
   env.carl.regime_b_split: train
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (featurized obs, context fed to RSSM)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -341,7 +341,7 @@ benchmark_regime_b_K3:
   env.carl.regime_b_factors: K3
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-D: context-aware (obs + context fed to RSSM)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -360,7 +360,7 @@ benchmark_regime_b_K3_quadruped:
   env.carl.regime_b_factors: K3
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-D: context-aware (obs + context fed to RSSM)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -380,7 +380,7 @@ benchmark_regime_b_mixed:
   env.carl.regime_b_reward_modes: [walk_forward, walk_backward]
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-D: context-aware — partial oracle (physics context only, reward-blind)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -400,7 +400,7 @@ benchmark_regime_b_mixed_quadruped:
   env.carl.regime_b_reward_modes: [go_north, go_south]
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 50
+  run.eval_eps: 10
   # cRSSM-D: context-aware — partial oracle (physics context only, reward-blind)
   encoder: {mlp_keys: 'obs', cnn_keys: '$^'}
   decoder: {mlp_keys: 'obs', cnn_keys: '$^'}
@@ -426,7 +426,7 @@ benchmark_atari_alien:
   env.atari.length: 108000
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 30
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (image + context fed to RSSM)
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
@@ -451,7 +451,7 @@ benchmark_atari_pong:
   env.atari.length: 108000
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 30
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (image + context fed to RSSM)
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
@@ -476,7 +476,7 @@ benchmark_atari_crazy_climber:
   env.atari.length: 108000
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 30
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (image + context fed to RSSM)
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
@@ -496,7 +496,7 @@ benchmark_procgen_coinrun:
   env.procgen.gray: False
   run.steps: 1000000
   run.eval_every: 20000
-  run.eval_eps: 30
+  run.eval_eps: 10
   # cRSSM-S: shallow context-aware (image + context fed to RSSM)
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}

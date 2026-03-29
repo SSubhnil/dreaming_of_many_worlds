@@ -23,7 +23,20 @@ from contextual_mbrl.dreamer.envs import make_envs
 warnings.filterwarnings("ignore")
 
 
-def train(agent, env, replay, logger, args, eval_env=None):
+def _get_context_factor_names(config):
+    """Return ordered context factor names for Regime B runs, else None."""
+    carl_cfg = getattr(getattr(config, "env", None), "carl", None)
+    if carl_cfg is None or getattr(carl_cfg, "regime", "A") != "B":
+        return None
+    task = getattr(config, "task", "")
+    factors = getattr(carl_cfg, "regime_b_factors", "K2")
+    base = ["gravity", "joint_damping"] if "quadruped" in task else ["actuator_strength", "gravity"]
+    if factors == "K3":
+        base = sorted(base + ["wind_x"])
+    return base
+
+
+def train(agent, env, replay, logger, args, eval_env=None, factor_names=None):
     # copied from embodied.run.train and modified
     logdir = embodied.Path(args.logdir)
     logdir.mkdirs()
@@ -76,6 +89,11 @@ def train(agent, env, replay, logger, args, eval_env=None):
                 stats[f"mean_{key}"] = ep[key].mean()
             if re.match(args.log_keys_max, key):
                 stats[f"max_{key}"] = ep[key].max(0).mean()
+        if "context" in ep and factor_names is not None:
+            ctx = ep["context"]  # (T+1, K)
+            for i, fname in enumerate(factor_names):
+                stats[f"gt_context_{fname}_mean"] = float(ctx[:, i].mean())
+                stats[f"gt_context_{fname}_std"] = float(ctx[:, i].std())
         metrics.add(stats, prefix="stats")
 
     driver = embodied.Driver(env)
@@ -223,7 +241,8 @@ def main():
         logdir=config.logdir,
         batch_steps=config.batch_size * config.batch_length,
     )
-    train(agent, env, replay, logger, args, eval_env=eval_env)
+    train(agent, env, replay, logger, args, eval_env=eval_env,
+          factor_names=_get_context_factor_names(config))
 
 
 if __name__ == "__main__":
