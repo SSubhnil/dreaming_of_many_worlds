@@ -777,7 +777,8 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
         # doesn't survive.  Override CARLDmcEnv.render() to always pass
         # camera_id=2 — this reads the *current* self.env each call.
         if task == "dmc_quadruped":
-            env.render = lambda: env.env.render(mode="rgb_array", camera_id=2)
+            _carl = env  # capture before env gets re-wrapped
+            env.render = lambda: _carl.env.render(mode="rgb_array", camera_id=2)
     if task == "classic_cartpole":
         env.env.screen_width = 128
         env.env.screen_height = 128
