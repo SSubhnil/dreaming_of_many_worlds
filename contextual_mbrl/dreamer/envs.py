@@ -364,9 +364,13 @@ def make_env(config, **overrides):
     suite, task = config.task.split("_", 1)
     if suite == "carl":
         return make_carl_env(config, **overrides)
-    elif suite == "atari" and hasattr(config.env, "atari") and "/" in str(config.env.atari.task_sequence):
+    elif suite == "atari" and hasattr(config.env, "atari") and (
+        getattr(config.env.atari, "modes", None) is not None
+        or "/" in str(getattr(config.env.atari, "task_sequence", ""))):
         return make_atari_context_env(config, **overrides)
-    elif suite == "procgen" and hasattr(config.env, "procgen") and "/" in str(config.env.procgen.task_sequence):
+    elif suite == "procgen" and hasattr(config.env, "procgen") and (
+        getattr(config.env.procgen, "level_ranges", None) is not None
+        or "/" in str(getattr(config.env.procgen, "task_sequence", ""))):
         return make_procgen_context_env(config, **overrides)
     else:
         return dreamerv3.train.make_env(config, **overrides)
@@ -394,7 +398,6 @@ def make_atari_context_env(config, **overrides):
     """Create Atari env with CARL-like context features for benchmark."""
     from benchmark.wrappers.atari_context import AtariContextWrapper
     _, game = config.task.split("_", 1)
-    task_seq = _parse_task_sequence(config.env.atari.task_sequence)
     try:
         _proc_id = int(current_process().name.split("-")[-1])
     except ValueError:
@@ -417,15 +420,34 @@ def make_atari_context_env(config, **overrides):
     lsr_tuple = tuple(float(x) for x in lsr) if lsr is not None else None
     if lsr_tuple is not None and lsr_tuple[0] == 0.0 and lsr_tuple[1] == 0.0:
         lsr_tuple = None  # [0.0, 0.0] sentinel means disabled
-    env = AtariContextWrapper(
-        game=game,
-        task_sequence=task_seq,
-        seed=seed,
-        switch_mode=switch_mode,
-        lambda_switch=lambda_switch,
-        lambda_switch_range=lsr_tuple,
-        atari_kwargs=atari_kwargs,
-    )
+
+    # Independent factor switching (new) vs paired task_sequence (legacy)
+    modes = getattr(config.env.atari, "modes", None)
+    difficulties = getattr(config.env.atari, "difficulties", None)
+    if modes is not None and difficulties is not None:
+        modes = [int(m) for m in modes]
+        difficulties = [int(d) for d in difficulties]
+        env = AtariContextWrapper(
+            game=game,
+            modes=modes,
+            difficulties=difficulties,
+            seed=seed,
+            switch_mode=switch_mode,
+            lambda_switch=lambda_switch,
+            lambda_switch_range=lsr_tuple,
+            atari_kwargs=atari_kwargs,
+        )
+    else:
+        task_seq = _parse_task_sequence(config.env.atari.task_sequence)
+        env = AtariContextWrapper(
+            game=game,
+            task_sequence=task_seq,
+            seed=seed,
+            switch_mode=switch_mode,
+            lambda_switch=lambda_switch,
+            lambda_switch_range=lsr_tuple,
+            atari_kwargs=atari_kwargs,
+        )
     # AtariContextWrapper outputs DreamerV3-native format, no FromGymnasium needed
     env = ResizeImage(env)
     return dreamerv3.wrap_env(env, config)
@@ -435,7 +457,6 @@ def make_procgen_context_env(config, **overrides):
     """Create Procgen env with CARL-like context features for benchmark."""
     from benchmark.wrappers.procgen_context import ProcgenContextWrapper
     _, game = config.task.split("_", 1)
-    task_seq = _parse_procgen_task_sequence(config.env.procgen.task_sequence)
     try:
         _proc_id = int(current_process().name.split("-")[-1])
     except ValueError:
@@ -449,16 +470,36 @@ def make_procgen_context_env(config, **overrides):
         lsr_tuple = None  # [0.0, 0.0] sentinel means disabled
     image_size = tuple(getattr(config.env.procgen, "size", (64, 64)))
     gray = getattr(config.env.procgen, "gray", False)
-    env = ProcgenContextWrapper(
-        game=game,
-        task_sequence=task_seq,
-        seed=seed,
-        switch_mode=switch_mode,
-        lambda_switch=lambda_switch,
-        lambda_switch_range=lsr_tuple,
-        image_size=image_size,
-        gray=gray,
-    )
+
+    # Independent factor switching (new) vs paired task_sequence (legacy)
+    level_ranges = getattr(config.env.procgen, "level_ranges", None)
+    dist_modes = getattr(config.env.procgen, "dist_modes", None)
+    if level_ranges is not None and dist_modes is not None:
+        level_ranges = [[int(x) for x in lr] for lr in level_ranges]
+        dist_modes = [str(dm) for dm in dist_modes]
+        env = ProcgenContextWrapper(
+            game=game,
+            level_ranges=level_ranges,
+            dist_modes=dist_modes,
+            seed=seed,
+            switch_mode=switch_mode,
+            lambda_switch=lambda_switch,
+            lambda_switch_range=lsr_tuple,
+            image_size=image_size,
+            gray=gray,
+        )
+    else:
+        task_seq = _parse_procgen_task_sequence(config.env.procgen.task_sequence)
+        env = ProcgenContextWrapper(
+            game=game,
+            task_sequence=task_seq,
+            seed=seed,
+            switch_mode=switch_mode,
+            lambda_switch=lambda_switch,
+            lambda_switch_range=lsr_tuple,
+            image_size=image_size,
+            gray=gray,
+        )
     # ProcgenContextWrapper outputs DreamerV3-native format, no FromGymnasium needed
     env = ResizeImage(env)
     return dreamerv3.wrap_env(env, config)

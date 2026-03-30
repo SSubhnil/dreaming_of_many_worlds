@@ -48,12 +48,12 @@ defaults:
   envs: {amount: 4, parallel: process, length: 0, reset: True, restart: True, discretize: 0, checks: False}
   wrapper: {length: 0, reset: True, discretize: 0, checks: False}
   env:
-    atari: {size: [64, 64], repeat: 4, sticky: True, gray: False, actions: all, lives: unused, noops: 0, resize: opencv, length: 108000, task_sequence: '0_0', switch_mode: round_robin, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0]}
+    atari: {size: [64, 64], repeat: 4, sticky: True, gray: False, actions: all, lives: unused, noops: 0, resize: opencv, length: 108000, task_sequence: '0_0', switch_mode: round_robin, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0], modes: null, difficulties: null}
     dmlab: {size: [64, 64], repeat: 4, episodic: True}
     minecraft: {size: [64, 64], break_speed: 100.0}
     dmc: {size: [64, 64], repeat: 2, camera: -1}
     loconav: {size: [64, 64], repeat: 2, camera: -1}
-    procgen: {task_sequence: '0_100_easy', switch_mode: round_robin, image_size: [64, 64], gray: False, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0]}
+    procgen: {task_sequence: '0_100_easy', switch_mode: round_robin, image_size: [64, 64], gray: False, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0], level_ranges: null, dist_modes: null}
     # Extra carl config
     carl: {context: default, regime: A, regime_b_lambda: 0.005, regime_b_lambda_range: [0.003, 0.008], regime_b_split: train, regime_b_factors: K2, regime_b_reward_modes: [walk_forward, walk_backward]}
       
@@ -411,9 +411,15 @@ benchmark_regime_b_mixed_quadruped:
   critic.inputs: [deter, stoch, context]
 
 # Atari benchmark presets
+# ── Atari benchmark presets (independent factor switching) ──────────────
+# Mode and difficulty switch independently via per-factor Bernoulli processes
+# with per-episode λ_k ~ U[0.15, 0.45].  Aligned with benchmarking_runs.md §A2.
+
 benchmark_atari_alien:
   task: atari_alien
-  env.atari.task_sequence: '0_0/1_1/2_2/3_3'
+  # Independent factors: modes [0,1,2] × difficulties [0,1,2] = 9 train combos
+  env.atari.modes: [0, 1, 2]
+  env.atari.difficulties: [0, 1, 2]
   env.atari.switch_mode: bernoulli
   env.atari.lambda_switch_range: [0.15, 0.45]
   env.atari.repeat: 4
@@ -427,7 +433,7 @@ benchmark_atari_alien:
   run.steps: 1000000
   run.eval_every: 20000
   run.eval_eps: 10
-  # cRSSM-S: shallow context-aware (image + context fed to RSSM)
+  # cRSSM-D: oracle context [mode, difficulty] fed to RSSM + all heads
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
   rssm.add_dcontext: True
@@ -436,9 +442,11 @@ benchmark_atari_alien:
   actor.inputs: [deter, stoch, context]
   critic.inputs: [deter, stoch, context]
 
-benchmark_atari_pong:
-  task: atari_pong
-  env.atari.task_sequence: '0_0/1_1'
+benchmark_atari_bank_heist:
+  task: atari_bank_heist
+  # Independent factors: modes [0,4,8,12,16] × difficulties [0,1,2] = 15 train combos
+  env.atari.modes: [0, 4, 8, 12, 16]
+  env.atari.difficulties: [0, 1, 2]
   env.atari.switch_mode: bernoulli
   env.atari.lambda_switch_range: [0.15, 0.45]
   env.atari.repeat: 4
@@ -452,7 +460,7 @@ benchmark_atari_pong:
   run.steps: 1000000
   run.eval_every: 20000
   run.eval_eps: 10
-  # cRSSM-S: shallow context-aware (image + context fed to RSSM)
+  # cRSSM-D: oracle context [mode, difficulty] fed to RSSM + all heads
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
   rssm.add_dcontext: True
@@ -461,35 +469,15 @@ benchmark_atari_pong:
   actor.inputs: [deter, stoch, context]
   critic.inputs: [deter, stoch, context]
 
-benchmark_atari_crazy_climber:
-  task: atari_crazy_climber
-  env.atari.task_sequence: '0_0/1_0/2_0/3_0'
-  env.atari.switch_mode: bernoulli
-  env.atari.lambda_switch_range: [0.15, 0.45]
-  env.atari.repeat: 4
-  env.atari.size: [64, 64]
-  env.atari.gray: False
-  env.atari.noops: 0
-  env.atari.sticky: False
-  env.atari.actions: needed
-  env.atari.lives: discount
-  env.atari.length: 108000
-  run.steps: 1000000
-  run.eval_every: 20000
-  run.eval_eps: 10
-  # cRSSM-S: shallow context-aware (image + context fed to RSSM)
-  encoder: {mlp_keys: '$^', cnn_keys: 'image'}
-  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
-  rssm.add_dcontext: True
-  ^(?!context).*\_head.inputs: [deter, stoch, context]
-  decoder.inputs: [deter, stoch, context]
-  actor.inputs: [deter, stoch, context]
-  critic.inputs: [deter, stoch, context]
+# ── Procgen benchmark presets (independent factor switching) ────────────
+# Level range and dist_mode switch independently via per-factor Bernoulli.
+# Single config covers both easy and hard (§A3).
 
-# Procgen benchmark presets
 benchmark_procgen_coinrun:
   task: procgen_coinrun
-  env.procgen.task_sequence: '0_100_easy/100_100_easy'
+  # Independent factors: 2 level ranges × 2 dist modes = 4 train combos
+  env.procgen.level_ranges: [[0, 100], [100, 100]]
+  env.procgen.dist_modes: [easy, hard]
   env.procgen.switch_mode: bernoulli
   env.procgen.lambda_switch_range: [0.15, 0.45]
   env.procgen.image_size: [64, 64]
@@ -497,7 +485,7 @@ benchmark_procgen_coinrun:
   run.steps: 1000000
   run.eval_every: 20000
   run.eval_eps: 10
-  # cRSSM-S: shallow context-aware (image + context fed to RSSM)
+  # cRSSM-D: oracle context [level_range, dist_mode] fed to RSSM + all heads
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
   rssm.add_dcontext: True
