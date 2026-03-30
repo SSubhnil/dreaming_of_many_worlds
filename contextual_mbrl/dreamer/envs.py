@@ -354,7 +354,7 @@ def make_envs(config, **overrides):
         if config.envs.parallel != "none":
             ctor = bind(embodied.Parallel, ctor, config.envs.parallel)
         if config.envs.restart:
-            ctor = bind(embodied.wrappers.RestartOnException, ctor)
+            ctor = bind(embodied.wrappers.RestartOnException, ctor, maxfails=10)
         ctors.append(ctor)
     envs = [ctor() for ctor in ctors]
     return embodied.BatchEnv(envs, parallel=(config.envs.parallel != "none"))
@@ -767,7 +767,7 @@ def gen_carl_val_envs(config, **overrides):
             if config.envs.parallel != "none":
                 ctor = bind(embodied.Parallel, ctor, config.envs.parallel)
             if config.envs.restart:
-                ctor = bind(embodied.wrappers.RestartOnException, ctor)
+                ctor = bind(embodied.wrappers.RestartOnException, ctor, maxfails=10)
             ctors.append(ctor)
         envs = [ctor() for ctor in ctors]
         yield embodied.BatchEnv(
