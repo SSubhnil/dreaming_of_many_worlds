@@ -469,14 +469,14 @@ benchmark_atari_bank_heist:
   actor.inputs: [deter, stoch, context]
   critic.inputs: [deter, stoch, context]
 
-# ── Procgen benchmark presets (independent factor switching) ────────────
-# Level range and dist_mode switch independently via per-factor Bernoulli.
-# Single config covers both easy and hard (§A3).
+# ── Procgen benchmark presets (single-factor dist_mode switching) ────────
+# Only dist_mode switches (easy↔hard) via per-episode Bernoulli.
+# Seeds fixed at [0, 500) during training; OOD eval uses [500, 1000).
 
 benchmark_procgen_coinrun:
   task: procgen_coinrun
-  # Independent factors: 2 level ranges × 2 dist modes = 4 train combos
-  env.procgen.level_ranges: [[0, 100], [100, 100]]
+  # Single factor: dist_mode switches; seeds fixed at [0, 500)
+  env.procgen.level_ranges: [[0, 500]]
   env.procgen.dist_modes: [easy, hard]
   env.procgen.switch_mode: bernoulli
   env.procgen.lambda_switch_range: [0.15, 0.45]
@@ -485,7 +485,7 @@ benchmark_procgen_coinrun:
   run.steps: 1000000
   run.eval_every: 20000
   run.eval_eps: 10
-  # cRSSM-D: oracle context [level_range, dist_mode] fed to RSSM + all heads
+  # cRSSM-D: oracle context [start_level(const), num_levels(const), dist_mode] fed to RSSM + all heads
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
   rssm.add_dcontext: True
