@@ -365,11 +365,11 @@ def make_env(config, **overrides):
     if suite == "carl":
         return make_carl_env(config, **overrides)
     elif suite == "atari" and hasattr(config.env, "atari") and (
-        getattr(config.env.atari, "modes", None) is not None
+        bool(getattr(config.env.atari, "modes", None))
         or "/" in str(getattr(config.env.atari, "task_sequence", ""))):
         return make_atari_context_env(config, **overrides)
     elif suite == "procgen" and hasattr(config.env, "procgen") and (
-        getattr(config.env.procgen, "level_ranges", None) is not None
+        bool(getattr(config.env.procgen, "level_ranges", None))
         or "/" in str(getattr(config.env.procgen, "task_sequence", ""))):
         return make_procgen_context_env(config, **overrides)
     else:
@@ -422,8 +422,8 @@ def make_atari_context_env(config, **overrides):
         lsr_tuple = None  # [0.0, 0.0] sentinel means disabled
 
     # Independent factor switching (new) vs paired task_sequence (legacy)
-    modes = getattr(config.env.atari, "modes", None)
-    difficulties = getattr(config.env.atari, "difficulties", None)
+    modes = getattr(config.env.atari, "modes", None) or None
+    difficulties = getattr(config.env.atari, "difficulties", None) or None
     if modes is not None and difficulties is not None:
         modes = [int(m) for m in modes]
         difficulties = [int(d) for d in difficulties]
@@ -472,8 +472,8 @@ def make_procgen_context_env(config, **overrides):
     gray = getattr(config.env.procgen, "gray", False)
 
     # Independent factor switching (new) vs paired task_sequence (legacy)
-    level_ranges = getattr(config.env.procgen, "level_ranges", None)
-    dist_modes = getattr(config.env.procgen, "dist_modes", None)
+    level_ranges = getattr(config.env.procgen, "level_ranges", None) or None
+    dist_modes = getattr(config.env.procgen, "dist_modes", None) or None
     if level_ranges is not None and dist_modes is not None:
         level_ranges = [[int(x) for x in lr] for lr in level_ranges]
         dist_modes = [str(dm) for dm in dist_modes]
