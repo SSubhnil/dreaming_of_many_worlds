@@ -53,7 +53,7 @@ defaults:
     minecraft: {size: [64, 64], break_speed: 100.0}
     dmc: {size: [64, 64], repeat: 2, camera: -1}
     loconav: {size: [64, 64], repeat: 2, camera: -1}
-    procgen: {task_sequence: '0_100_easy', switch_mode: round_robin, image_size: [64, 64], gray: False, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0], level_ranges: [-1], dist_modes: [none]}
+    procgen: {task_sequence: '0_100_easy', switch_mode: round_robin, image_size: [64, 64], gray: False, lambda_switch: 0.3, lambda_switch_range: [0.0, 0.0], level_ranges: [-1, -1], dist_modes: [none]}
     # Extra carl config
     carl: {context: default, regime: A, regime_b_lambda: 0.005, regime_b_lambda_range: [0.003, 0.008], regime_b_split: train, regime_b_factors: K2, regime_b_reward_modes: [walk_forward, walk_backward]}
       
@@ -476,7 +476,7 @@ benchmark_atari_bank_heist:
 benchmark_procgen_coinrun:
   task: procgen_coinrun
   # Single factor: dist_mode switches; seeds fixed at [0, 500)
-  env.procgen.level_ranges: [[0, 500]]
+  env.procgen.level_ranges: [0, 500]
   env.procgen.dist_modes: [easy, hard]
   env.procgen.switch_mode: bernoulli
   env.procgen.lambda_switch_range: [0.15, 0.45]

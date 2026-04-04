@@ -369,7 +369,7 @@ def make_env(config, **overrides):
         or "/" in str(getattr(config.env.atari, "task_sequence", ""))):
         return make_atari_context_env(config, **overrides)
     elif suite == "procgen" and hasattr(config.env, "procgen") and (
-        (lambda m: bool(m) and tuple(m) != (-1,))(getattr(config.env.procgen, "level_ranges", None))
+        (lambda m: bool(m) and tuple(m) != (-1, -1))(getattr(config.env.procgen, "level_ranges", None))
         or "/" in str(getattr(config.env.procgen, "task_sequence", ""))):
         return make_procgen_context_env(config, **overrides)
     else:
@@ -475,11 +475,13 @@ def make_procgen_context_env(config, **overrides):
 
     # Independent factor switching (new) vs paired task_sequence (legacy)
     _lr = getattr(config.env.procgen, "level_ranges", None)
-    level_ranges = None if (not _lr or tuple(_lr) == (-1,)) else _lr
+    level_ranges = None if (not _lr or tuple(_lr) == (-1, -1)) else _lr
     _dm = getattr(config.env.procgen, "dist_modes", None)
     dist_modes = None if (not _dm or tuple(_dm) == ('none',)) else _dm
     if level_ranges is not None and dist_modes is not None:
-        level_ranges = [[int(x) for x in lr] for lr in level_ranges]
+        # level_ranges is stored as flat int pairs: [min0, max0, min1, max1, ...]
+        lr_flat = [int(x) for x in level_ranges]
+        level_ranges = [[lr_flat[i], lr_flat[i + 1]] for i in range(0, len(lr_flat), 2)]
         dist_modes = [str(dm) for dm in dist_modes]
         env = ProcgenContextWrapper(
             game=game,
