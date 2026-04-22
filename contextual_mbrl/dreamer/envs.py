@@ -846,7 +846,13 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
                 )
-            else:  # K2 or K3_mixed (mixed uses K2 physics + reward layer)
+            elif regime_b_factors == "K3_mixed":  # 2F mixed: gravity only + reward layer
+                from benchmark.wrappers.carl_intra_episode import make_quadruped_regime_b_mixed_wrapper
+                env = make_quadruped_regime_b_mixed_wrapper(
+                    env, seed=seed, lambda_switch=regime_b_lambda,
+                    lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                )
+            else:  # K2: gravity + joint_damping
                 from benchmark.wrappers.carl_intra_episode import make_quadruped_regime_b_wrapper
                 env = make_quadruped_regime_b_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
@@ -859,7 +865,13 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
                 )
-            else:  # K2 or K3_mixed
+            elif regime_b_factors == "K3_mixed":  # 2F mixed: gravity only + reward layer
+                from benchmark.wrappers.carl_intra_episode import make_walker_regime_b_mixed_wrapper
+                env = make_walker_regime_b_mixed_wrapper(
+                    env, seed=seed, lambda_switch=regime_b_lambda,
+                    lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                )
+            else:  # K2: gravity + actuator_strength
                 from benchmark.wrappers.carl_intra_episode import make_walker_regime_b_wrapper
                 env = make_walker_regime_b_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
@@ -874,7 +886,9 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
             domain = "quadruped" if task == "dmc_quadruped" else "walker"
             env = CARLRewardModeSwitcher(
                 env, domain=domain, mode_list=reward_modes,
-                lambda_switch=regime_b_lambda, seed=seed + 1000,
+                lambda_switch=regime_b_lambda,
+                lambda_switch_range=regime_b_lambda_range,
+                seed=seed + 1000,
             )
 
     if "classic" in task:
