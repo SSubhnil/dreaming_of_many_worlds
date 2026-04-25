@@ -838,6 +838,15 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
         regime_b_factors = getattr(config.env.carl, "regime_b_factors", "K2")
         _lsr = getattr(config.env.carl, "regime_b_lambda_range", [0.003, 0.008])
         regime_b_lambda_range = tuple(float(x) for x in _lsr) if _lsr else None
+        # Per-factor split overrides (e.g. ["gravity=test_ood_hard"]) for f1/f2
+        # OOD isolation conditions. Empty strings are skipped (sentinel default).
+        _rbfs = getattr(config.env.carl, "regime_b_factor_splits", [""]) or []
+        regime_b_factor_splits = {}
+        for entry in _rbfs:
+            if not entry or "=" not in entry:
+                continue
+            k, v = entry.split("=", 1)
+            regime_b_factor_splits[k.strip()] = v.strip()
 
         if task == "dmc_quadruped":
             if regime_b_factors == "K3":
@@ -864,18 +873,21 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
                 env = make_walker_regime_b_K3_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                    factor_splits=regime_b_factor_splits or None,
                 )
             elif regime_b_factors == "K3_mixed":  # 2F mixed: gravity only + reward layer
                 from benchmark.wrappers.carl_intra_episode import make_walker_regime_b_mixed_wrapper
                 env = make_walker_regime_b_mixed_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                    factor_splits=regime_b_factor_splits or None,
                 )
             else:  # K2: gravity + actuator_strength
                 from benchmark.wrappers.carl_intra_episode import make_walker_regime_b_wrapper
                 env = make_walker_regime_b_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                    factor_splits=regime_b_factor_splits or None,
                 )
 
         # K3_mixed: add reward mode switching on top of physics switching
