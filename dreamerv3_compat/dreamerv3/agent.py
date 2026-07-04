@@ -87,8 +87,15 @@ class Agent(nj.Module):
             outs = task_outs
             outs["action"] = outs["action"].sample(seed=nj.rng())
             outs["log_entropy"] = jnp.zeros(outs["action"].shape[:1])
-            # Reward prediction for benchmark eval (reward accuracy metric)
-            reward_dist = self.wm.heads["reward"](latent)
+            # Reward prediction for benchmark eval (reward accuracy metric).
+            # cRSSM context-conditioned reward_head (inputs=[deter,stoch,context])
+            # needs the oracle context from obs["context"] (add_dcontext=True).
+            _reward_inputs = (
+                {**latent, "context": dcontext}
+                if self.wm.rssm._add_dcontext
+                else latent
+            )
+            reward_dist = self.wm.heads["reward"](_reward_inputs)
             outs["reward_hat"] = reward_dist.mean()
         elif mode == "explore":
             outs = expl_outs

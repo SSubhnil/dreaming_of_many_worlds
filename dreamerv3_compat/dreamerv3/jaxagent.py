@@ -86,6 +86,13 @@ class JAXAgent(embodied.Agent):
       assert jaxutils.Optimizer.PARAM_COUNTS
       for name, count in jaxutils.Optimizer.PARAM_COUNTS.items():
         mets[f'params_{name}'] = float(count)
+      total = sum(c for c in jaxutils.Optimizer.PARAM_COUNTS.values() if c)
+      mets['params_total_trainable'] = float(total)
+      print('[PARAM_COUNT] ==============================')
+      for name, count in jaxutils.Optimizer.PARAM_COUNTS.items():
+        print(f'[PARAM_COUNT]   {name}: {count:,}')
+      print(f'[PARAM_COUNT] TOTAL TRAINABLE: {total:,}')
+      print('[PARAM_COUNT] ==============================')
     return outs, state, mets
 
   def report(self, data):

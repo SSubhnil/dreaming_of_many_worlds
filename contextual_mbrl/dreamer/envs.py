@@ -854,18 +854,21 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
                 env = make_quadruped_regime_b_K3_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                    factor_splits=regime_b_factor_splits or None,
                 )
             elif regime_b_factors == "K3_mixed":  # 2F mixed: gravity only + reward layer
                 from benchmark.wrappers.carl_intra_episode import make_quadruped_regime_b_mixed_wrapper
                 env = make_quadruped_regime_b_mixed_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                    factor_splits=regime_b_factor_splits or None,
                 )
             else:  # K2: gravity + joint_damping
                 from benchmark.wrappers.carl_intra_episode import make_quadruped_regime_b_wrapper
                 env = make_quadruped_regime_b_wrapper(
                     env, seed=seed, lambda_switch=regime_b_lambda,
                     lambda_switch_range=regime_b_lambda_range, split=regime_b_split,
+                    factor_splits=regime_b_factor_splits or None,
                 )
         else:
             if regime_b_factors == "K3":
