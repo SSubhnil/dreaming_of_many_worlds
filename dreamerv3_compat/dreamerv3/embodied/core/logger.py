@@ -251,6 +251,11 @@ class WandBOutput:
         value = np.transpose(value, [2, 0, 1])
         bystep[step][name] = wandb.Image(value)
       elif len(value.shape) == 4:
+        # Rollout videos (e.g. openl_image) upload as GIFs and dominate wandb
+        # storage — ~110 GB per benchmark project (benchmark_dali/benchmark_crssm).
+        # Disabled by default; set WANDB_LOG_VIDEOS=1 to re-enable.
+        if not os.environ.get("WANDB_LOG_VIDEOS"):
+          continue
         # Sanity check that the channeld dimension is last
         assert value.shape[3] in [1, 3, 4], f"Invalid shape: {value.shape}"
         value = np.transpose(value, [0, 3, 1, 2])

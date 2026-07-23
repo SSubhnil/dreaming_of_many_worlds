@@ -838,6 +838,16 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
         regime_b_factors = getattr(config.env.carl, "regime_b_factors", "K2")
         _lsr = getattr(config.env.carl, "regime_b_lambda_range", [0.003, 0.008])
         regime_b_lambda_range = tuple(float(x) for x in _lsr) if _lsr else None
+        # S3 A3 fix: the reward switcher's hazard is DECOUPLED from the physics
+        # wrapper's λ. Eval injects env.carl.regime_b_reward_lambda(_range) to drive
+        # reward switching independently (reward_ood: switch modes at reward_lambda
+        # while physics stays static). Defaults to the physics λ so training and any
+        # config that doesn't set it keep the prior coupled behaviour.
+        regime_b_reward_lambda = float(getattr(
+            config.env.carl, "regime_b_reward_lambda", regime_b_lambda))
+        _rlsr = getattr(config.env.carl, "regime_b_reward_lambda_range", _lsr)
+        regime_b_reward_lambda_range = (
+            tuple(float(x) for x in _rlsr) if _rlsr else None)
         # Per-factor split overrides (e.g. ["gravity=test_ood_hard"]) for f1/f2
         # OOD isolation conditions. Empty strings are skipped (sentinel default).
         _rbfs = getattr(config.env.carl, "regime_b_factor_splits", [""]) or []
@@ -901,8 +911,8 @@ def create_wrapped_carl_env(env_cls: CARLEnv, contexts, config):
             domain = "quadruped" if task == "dmc_quadruped" else "walker"
             env = CARLRewardModeSwitcher(
                 env, domain=domain, mode_list=reward_modes,
-                lambda_switch=regime_b_lambda,
-                lambda_switch_range=regime_b_lambda_range,
+                lambda_switch=regime_b_reward_lambda,
+                lambda_switch_range=regime_b_reward_lambda_range,
                 seed=seed + 1000,
             )
 
