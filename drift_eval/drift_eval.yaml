@@ -1,0 +1,57 @@
+# Drift-eval (§8b) port — conditions and the cRSSM checkpoint inventory.
+#
+# Condition ids are CWM's (benchmark/eval_conditions.yaml:143/:154 @befabde, families dmc_drift_*; the
+# training-protocol condition is CWM's `phys_train`). Letters A-F are the plan's names (§8b/§8c).
+#
+# Checkpoint facts [verified 2026-09-14]: `step` is the pickled step counter inside checkpoint.ckpt
+# (read with pickle under /home/jovyan/envs/dali/bin/python); `sha256` is of the local file under
+# /home/jovyan/baseline_ckpts/crssm/<slug>/seed<N>/checkpoint.ckpt and equals the LFS sha256 that
+# HF `ssubhnil/cwm` lists for crssm/<slug>/seed<N>/checkpoint.ckpt (huggingface_hub list_repo_tree).
+# run.py refuses a checkpoint whose sha256 is not listed here, and one whose step is not 1000000
+# unless --allow-partial-ckpt.
+
+conditions:
+  phys_train:     {letter: A,  schedule: null,    axis: physics, what: "training protocol: regime B, train split, Bernoulli per-factor switching, per-episode lambda ~ U[0.003, 0.008] (checkpoint config)"}
+  drift_ir_a:     {letter: B,  schedule: ir_a,    axis: drift,   what: "in-range matched abrupt (value-matched band permutation of IR-S, same TV)"}
+  drift_ir_s:     {letter: C,  schedule: ir_s,    axis: drift,   what: "in-range gradual log-sine, one cycle, TV = training budget"}
+  drift_h_a:      {letter: D,  schedule: h_a,     axis: drift,   what: "hard-excursion matched abrupt"}
+  drift_h_s:      {letter: E,  schedule: h_s,     axis: drift,   what: "hard-excursion gradual half-cycle"}
+  drift_tau_1:    {letter: F,  schedule: tau_1,   axis: drift,   what: "tau-dial (optional)"}
+  drift_tau_8:    {letter: F,  schedule: tau_8,   axis: drift,   what: "tau-dial (optional)"}
+  drift_tau_16:   {letter: F,  schedule: tau_16,  axis: drift,   what: "tau-dial (optional)"}
+  drift_tau_64:   {letter: F,  schedule: tau_64,  axis: drift,   what: "tau-dial (optional)"}
+  drift_tau_256:  {letter: F,  schedule: tau_256, axis: drift,   what: "tau-dial (optional)"}
+
+default_conditions: [phys_train, drift_ir_a, drift_ir_s, drift_h_a, drift_h_s]
+
+checkpoints:
+  walker_3f_phys:        # slug dmc_walker_k3
+    1: {step: 1000000, sha256: 641aac1febe47ce3433b90afc260f1c90de934c01c68de0fcb8aaf98f965adba}
+    2: {step: 1000000, sha256: ef5ab61bddead2f925470d1d5a52352a8903fad572056f5c87331724d06b040d}
+    3: {step: 1000000, sha256: f9ca3a5c48bd9db44e3086dfdb2ef0bc122a6ab3c9e0122a8e1dcc7e91ee64da}
+    4: {step: 1000000, sha256: 967594242085b0980c46f1ac0d5a2b9bc4cd71fc9ad6609c8cc23e9b63cff6a9}
+    5: {step: 1000000, sha256: 6eb31b8b451b0d92f1fd8c63939a43e723272839cc55d6f12f3353a7c413ccc1}
+  walker_2f_phys:        # slug dmc_walker_k2
+    1: {step: 1000000, sha256: f7b91c36d1b6eeff2b72b84aac09f528b205bee401ffef1049df5618427a8f06}
+    2: {step: 1000000, sha256: 7d417f30bc0134b09a10d1a007c18019a74948aa4ea7d30aa5c65a21bc2a2efc}
+    3: {step: 1000000, sha256: 942172b02e40a4b44433a3575b6aa79756313cb444ee1fd298abb8c44a02734d}
+    4: {step: 1000000, sha256: aca09b80f3bfe3c07d86239abacc9d43c90fba8f32d7e59c783e66d0da548ded}
+    5: {step: 1000000, sha256: 115cd63dd6f41b886394e274f526488b0209aa6ff244c9c3bad2b2d22847621a}
+  walker_2f_mixed:       # slug dmc_walker_2f_mixed
+    1: {step: 1000000, sha256: f660b211d9228e56f598fdb8d522f3531a9528e94c762e5bf133d3a9c20e323f}
+    2: {step: 1000000, sha256: 17cc8c28f25e3df6d6e449931d3913992662cabb5f8579bb361cc1faf2e8fade}
+    3: {step: 1000000, sha256: 8d6683cde51ef02c67fb3b8d216907b41d9c127426982d4f43f2a757ff377627}
+    4: {step: 1000000, sha256: 1839723648d944a6104921ffe636b0244a444e9a642a86e23009ba0384fb3562}
+    5: {step: 1000000, sha256: 826eaef95207f9f71c53c81d959372f8da87d9ddb2cc89a8cd122e4bafba5958}
+  quadruped_2f_phys:     # slug dmc_quadruped_k2 — ONLY seed 2 reached 1M
+    1: {step: 395300,  sha256: c4c74d56998041a0c9e7a8b26a07c11c634f0295f882a93ea6ee72bc5dff3456}
+    2: {step: 1000000, sha256: 40401eef464fdd1ff055a4fe7a513e420a8bf30b5c629ffe9f888866401352ed}
+    3: {step: 296100,  sha256: e241e33a4019c4ae0a1b53e09859acceaed3c63596f114b3f3f40e18327a9171}
+    4: {step: 27700,   sha256: f1a1647a6965c5596ef33229fecc75863778200e5741be165838e5a46b31e033}
+    5: {step: 418600,  sha256: 2690e285442004f00bb45e24f004685e1fcc847881f63752d72661a8f1ef79b2}
+  quadruped_2f_mixed:    # slug dmc_quadruped_2f_mixed (NOT the older dmc_quadruped_mixed slug)
+    1: {step: 1000000, sha256: d8b1fbfd9ee90dbce6036a74cabbad015c8ad4a7b6abea277abf564ba61dbb60}
+    2: {step: 1000000, sha256: 53118e6e986114d0323037cab37c5bf393a2f5e2b5cfdc0aa2ef43f38c362c83}
+    3: {step: 1000000, sha256: ff993bc48f0002cf73c85a3ee86d8dc5c8f7fb557e8ada4ea39ed74a4153cb00}
+    4: {step: 1000000, sha256: 90fc0966b65167e7cbdf61bc999e79711a6d21cf2305e97306c4c6df3b7d5951}
+    5: {step: 1000000, sha256: bb29a7216f59e205ee14f8c44dd87e2e95d83ddfd89ccbb3d079a85c12e18401}

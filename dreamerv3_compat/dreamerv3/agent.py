@@ -83,9 +83,15 @@ class Agent(nj.Module):
         expl_outs, expl_state = self.expl_behavior.policy(
             latent, expl_state, dcontext=dcontext
         )
-        if mode == "eval":
+        if mode in ("eval", "eval_greedy"):
             outs = task_outs
-            outs["action"] = outs["action"].sample(seed=nj.rng())
+            if mode == "eval":
+                outs["action"] = outs["action"].sample(seed=nj.rng())
+            else:
+                # Opt-in deterministic readout of the same actor for the drift-eval port
+                # (drift_eval/README.md): the mode of the action distribution, i.e. tanh(mean) for
+                # the continuous 'normal' actor. The native eval mode above samples.
+                outs["action"] = outs["action"].mode()
             outs["log_entropy"] = jnp.zeros(outs["action"].shape[:1])
             # Reward prediction for benchmark eval (reward accuracy metric).
             # cRSSM context-conditioned reward_head (inputs=[deter,stoch,context])
